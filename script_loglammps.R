@@ -65,6 +65,26 @@ plot_all <- function(name1= "x", name2 = "y", vel, ff){
       return(p1)
         }
   }
-}  
+
+
+####para Luis#######
+  df <- read.csv("~/THESIS/all_log_lamps.csv")
+  plot_all <- function(name1= "x", name2 = "y", vel, ff){
+          df <- as.data.frame(filter(df, velocity == vel & fill.factor == ff))
+          x1 <- as.vector(df[[name1]])
+          x2 <- as.vector(df[[name2]])
+          p1 <- ggplot(df, aes(x1,x2)) +
+            geom_line() +
+            xlab(as.character(name1)) +
+            ylab(as.character(name2))
+          if(length(vel) == 1 && length(ff) == 1){
+            p1 <- p1 + ggtitle(as.character(paste("velocity ", vel, " & fill factor ", ff)))
+            return(p1)  
+          }else{
+          p1 <- p1 + facet_grid(velocity ~ fill.factor)
+          return(p1)
+        }
+  }
+
 
 
