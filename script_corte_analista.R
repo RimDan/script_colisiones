@@ -1,3 +1,11 @@
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(purrr)
+library(caret)
+library(stats)
+library(factoextra)
+
 df <- read.csv("~/THESIS/all_log_lamps.csv")
 
 plot_end <- function(vel, ff){
@@ -24,23 +32,38 @@ plot_end <- function(vel, ff){
 }
 
 setwd("/home/daniela/simulaciones_daniela/")
-dirs <- list.files(path="./", full.names = TRUE, pattern = "granular_*")
 
 ###OJO: tamaño small###
-fill.factor <- as.numeric(ff)
-velocity  <- as.numeric(vel)
 
-directory <- paste(getwd(),"/granular_small_",fill.factor,"_",velocity,sep ="")
-print("DIRECTORY:")
-print(directory)
-setwd(directory)
+class_kmeans <- function(vel, ff, min_step){
+  
+  fill.factor <- as.numeric(ff)
+  velocity  <- as.numeric(vel)
 
+  directory <- paste(getwd(),"/granular_small_",fill.factor,"_",velocity,sep ="")
+  print("DIRECTORY:")
+  print(directory)
+  setwd(directory)
 
-lo <- as.character(paste("output.",min_step,".gz", sep = ""))
-last_output <- as.data.frame(read.table(lo, header= FALSE, sep=' ', strip.white = TRUE, skip = 9, skipNul = TRUE,
+  lo <- as.character(paste("output.",min_step,".gz", sep = ""))
+  last_output <- as.data.frame(read.table(lo, header= FALSE, sep=' ', strip.white = TRUE, skip = 9, skipNul = TRUE,
                                         col.names=c("id", "type", 
                                                     "x", "y", "z",
                                                     "vx", "vy", "vz",
                                                     "omegax", "omegay", "omegaz", "NA")))
-last_output <- select(last_output,-NA.)
+  last_output <- select(last_output,-NA.)
+  #ggplot(last_output, aes(id, vz)) + geom_point()
+  ###############kmeans##############
 
+  ##no descomentar a menos que no se sepa el nro de clusters que se quieran########
+  ###(o que se tenga una compu que resista sin trabarse)###########################
+  #fviz_nbclust(last_output, kmeans, method = "wss") +
+  # geom_vline(xintercept = 2, linetype = 2)
+  set.seed(123)
+
+  km.res <- kmeans(select(last_output, vz), 2, nstart = 25)
+  clust <- as.data.frame(km.res$cluster) 
+  names(clust) <- paste("clust")
+  last_output <- bind_cols(last_output, clust)
+  ggplot(last_output, aes(id, vz, color = clust)) + geom_point()
+}
