@@ -12,7 +12,7 @@ plot_end <- function(vel, ff){
   df <- as.data.frame(filter(df, velocity == vel & fill.factor == ff))
   c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
   df1 <- filter(df, TotEng <= c)
-  ###ojo, no siempre los dumps van a ser cada 1000 steps####
+  ###ojo, no siempre los dumps van a ser cada 10000 steps####
   df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
   x <- as.vector(df1[["TotEng"]])
   y <- as.vector(lag(df1[["TotEng"]]))
