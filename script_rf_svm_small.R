@@ -34,6 +34,8 @@ root_dir <- getwd()
 num_files_train <- 1
 num_dumps_to_read <- 100
 
+toteng_cut <- 0
+
 dirs <- list.files(path="./", full.names = TRUE, pattern = "granular_*")
 
 
@@ -71,10 +73,10 @@ for (f in 1:length(dirs)) {
     fill <- as.numeric(unlist(strsplit(dirs[f],"[_]"))[3])
     vel  <- as.numeric(unlist(strsplit(dirs[f],"[_]"))[4])
   
-    if (size == "small" & velocity >= -1.0){
+    if (size == "small" & vel >= -1.0){
     
     #cd to simulation directory
-    directory <- paste(getwd(),"/granular_",size,"_",fill,"_",velocity,sep ="")
+    directory <- paste(getwd(),"/granular_",size,"_",fill,"_",vel,sep ="")
     setwd(directory)
     
     total_grains <- as.numeric(unlist(strsplit(grep("Loop time", readLines("log.lammps"),value = TRUE), " "))[12])
@@ -87,6 +89,7 @@ for (f in 1:length(dirs)) {
     print(paste("Cantidad de pasos entre dumps: ", predict_between_n_steps))
     
     #############criterio de corte###################
+    df <- read.csv("~/THESIS/all_log_lamps.csv")
     df <- as.data.frame(filter(df, velocity == vel & fill.factor == fill))
     c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
     df1 <- filter(df, TotEng <= c)
@@ -97,16 +100,10 @@ for (f in 1:length(dirs)) {
     z <- as.data.frame(x-y)
     names(z) <- paste("stap")
     df1 <- bind_cols(df1, z)
-    z1 <- filter(df1, z == 0)
+    z1 <- filter(df1, z <= toteng_cut)
     min_step <- as.numeric(min(z1[4]))
     print(paste("el step de corte sugerido es", min_step))
-    #p1 <- ggplot(df, aes(Step,TotEng)) +
-    #  geom_line() +
-    #  xlab("Step") +
-    #  ylab("TotEng")
-    #p1 <- p1 + geom_vline(xintercept = as.numeric(min_step), color = "red", size =1)
-    #p1 <- p1 + ggtitle(as.character(paste("velocity ", vel, " & fill factor ", ff)))
-    #p1 
+
     ######### CARGAR LAS 10 TABLAS EN UNA LISTA COMO DATAFRAMES ###############################
     ### Cargo el nombre de todos los archivos output en el directorio     #####################
     ### luego ordeno por numero de dump y guardo el indice en vkeys de los ultimos 10 dumps ###
@@ -115,12 +112,13 @@ for (f in 1:length(dirs)) {
     temp = list.files(pattern="output.*.gz")
     vals <- unlist(lapply(temp, FUN=function(x){strsplit(x[1], ".g")[[1]][1]}))
     vals2 <- unlist(lapply(vals, FUN=function(x){strsplit(x[1], "output.")[[1]][2]}))
-    holi <- as.data.frame(sort(as.numeric(vals2)))
+    holi <- as.data.frame(as.numeric(vals2))
     names(holi) <- paste("output")
     holi <- filter(holi, output <= min_step)
     vals2 <- as.character(holi[[1]])
     vkeys <- tail(mixedorder(vals2),num_files_train)
     vkeys_lastfile <- tail(mixedorder(vals2),1)
+    
     
     myfiles = lapply(temp[vkeys], 
                      function(x){
@@ -142,18 +140,15 @@ for (f in 1:length(dirs)) {
                                                         "x", "y", "z",
                                                         "vx", "vy", "vz",
                                                         "omegax", "omegay", "omegaz", "NA")))
-    clust <- vector(mode = "integer", length = total_grains)
-    for(i in 1:total_grains) {
-        if(last_output[i,5] >= z[as.character(velocity),as.character(fill)]){
-            clust[i] <- "c1"
-        }else{
-            clust[i] <- "c2"
-        }
-    }
-    
-    clust <- as.data.frame(clust) 
     last_output <- select(last_output,-NA.)
-    last_output<- bind_cols(last_output,clust)
+    
+    set.seed(123)
+    
+    km.res <- kmeans(select(last_output, vz), 2, nstart = 25)
+    clust <- as.data.frame(as.factor(km.res$cluster)) 
+    names(clust) <- paste("clust")
+    last_output <- bind_cols(last_output, clust)
+    
     #CANTIDAD QUE QUEDA EN EL FRAGMENTO DE ARRIBA#
     map(last_output[12], function(x){sum(x=="c1")})
     
@@ -161,7 +156,7 @@ for (f in 1:length(dirs)) {
         myfiles[[i]] <- bind_cols(myfiles[[i]],clust)
     }
     
-    #un solo df con los últimos 10 outputs
+    #un solo df con los últimos outputs
     lo_10 <- do.call(rbind.data.frame, myfiles)
 
     #incluir clust para poder hacer la matriz de confusión después###
@@ -189,14 +184,24 @@ for (f in 1:length(dirs)) {
     tic("predict")
     #####SI TODO OK, ENTONCES#########################################
     archivos <- list.files(path=".", full.names = TRUE, pattern = "output.*.gz")
-    
+    #vals <- unlist(lapply(archivos, FUN=function(x){strsplit(x[1], ".g")[[1]][1]}))
+    #vals2 <- unlist(lapply(vals, FUN=function(x){strsplit(x[1], "output.")[[1]][2]}))
+    #holi <- as.data.frame(as.numeric(vals2))
+    #names(holi) <- paste("output")
+    #len <- as.data.frame(mixedorder(vals2))
+    #names(len) <- paste("mixedorder")
+    #holi <- bind_cols(holi,len)
+    #holi2 <- filter(holi, output <= min_step)
+
+    #archivos <- archivos[holi2[[2]]]
     
     #SUPPORT VECTOR MACHINE PARA TODOS LOS OUTPUTS
     for (i in 1:length(archivos)) {
         
         step <- as.double(unlist(strsplit(archivos[i], "[.]"))[3])
+    
         #para probar algunos y no todos
-        if (step %% predict_between_n_steps == 0) {
+        if (step %% predict_between_n_steps == 0 & step < min_step) {
             print(archivos[i])
             testing <- as.data.frame(
                         read.table(archivos[i], header = FALSE, sep = ' ', strip.white = TRUE, skip = 9, skipNul = TRUE, stringsAsFactors=FALSE,
@@ -217,7 +222,7 @@ for (f in 1:length(dirs)) {
             toc(log = TRUE, quiet = TRUE)
 
             tic("save SVM")
-            new_data_svm <- data.frame(model="svm", size = size,  fill=fill, velocity = velocity, step = step, 
+            new_data_svm <- data.frame(model="svm", size = size,  fill=fill, velocity = vel, step = step, 
                                    accuracy = accuracy_svm, specificity = specificity_svm, sensitivity = sensitivity_svm)
             output_predict <- rbind(output_predict, new_data_svm) 
             toc(log = TRUE, quiet = TRUE)
@@ -232,7 +237,7 @@ for (f in 1:length(dirs)) {
             toc(log = TRUE, quiet = TRUE)
             
             tic("save RF")
-            new_data_rf <- data.frame(model="rf", size = size,  fill=fill, velocity = velocity, step = step, 
+            new_data_rf <- data.frame(model="rf", size = size,  fill=fill, velocity = vel, step = step, 
                                    accuracy = accuracy_rf, specificity = specificity_rf, sensitivity = sensitivity_rf)
             output_predict <- rbind(output_predict, new_data_rf) 
             toc(log = TRUE, quiet = TRUE)
@@ -252,11 +257,11 @@ for (f in 1:length(dirs)) {
     predict <- get_time("predict",time_list)
     
     
-    time_df <- data.frame(model = "svm", size= size, fill= fill, velocity=velocity, predict_total = predict,
+    time_df <- data.frame(model = "svm", size= size, fill= fill, velocity=vel, predict_total = predict,
                           time_train = train_svm, time_predict = predict_svm, time_input = input, time_save_total = save_svm)
     output_benchmark <- rbind(output_benchmark, time_df)
     
-    time_df <- data.frame(model = "rf", size= size, fill= fill, velocity=velocity, predict_total = predict,
+    time_df <- data.frame(model = "rf", size= size, fill= fill, velocity=vel, predict_total = predict,
                           time_train = train_rf, time_predict = predict_rf, time_input = input, time_save_total = save_rf)
     output_benchmark <- rbind(output_benchmark, time_df)
     
@@ -287,15 +292,14 @@ save(output_benchmark,file="benchmark_granular_Daniela_2018-10-03_SMALL_100point
 #train_rf <- mean(as.numeric(unlist(lapply(time_list, FUN=function(x){ v <- strsplit(x[1],":"); if (v[[1]][1] == "train RF") strsplit(v[[1]][2]," ")[[1]][2]; }))))
 
 #PLOTEAR RANDOM FOREST Y SVM EN EL MISMO GRÁFICO.
-p1 <-   output_predict %>% filter(fill==0.15 & velocity == -0.5) %>%
+p1 <-   output_predict %>% #filter(fill==0.15 & velocity == -0.5) %>%
         ggplot() + 
-        ggtitle("v=1.0") + 
-        geom_point(aes(step, accuracy, color= "RF")) + 
-        geom_point(aes(step, accuracy, color="SVM")) + 
+        geom_line(aes(step, accuracy, color=model)) + 
         xlab("Steps") + 
         ylab("Accuracy") + 
         theme_bw() + 
         labs(colour="Method")
+p1 <- p1 + facet_grid(velocity~fill)
 p1
 #}
   
