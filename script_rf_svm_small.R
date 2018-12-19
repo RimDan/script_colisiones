@@ -30,6 +30,42 @@ get_time <- function(type,time_list){
 #setwd("/mnt/hd/emillan/granular_daniela/TODAS")
 setwd("/home/daniela/simulaciones_daniela/")
 
+###Matriz con con vel, ff, y step de corte#######
+M <- matrix(NA, 21,2)
+for (i in 1:length(dirs)) {
+  M[i,1] <- as.numeric(unlist(strsplit(dirs[i],"[_]"))[3])
+  M[i,2]  <- as.numeric(unlist(strsplit(dirs[i],"[_]"))[4])
+  print(M)
+}
+M <- as.data.frame(M)
+names(M) <- paste(c("ff", "vel"))
+M <- filter(M, vel != -2.5 & vel != -5)
+guimme_end <- function(vel, ff){
+  df <- as.data.frame(filter(df, velocity == vel & fill.factor == ff))
+  c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
+  df1 <- filter(df, TotEng <= c)
+  ###ojo, no siempre los dumps van a ser cada 10000 steps####
+  df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
+  x <- as.vector(df1[["TotEng"]])
+  y <- as.vector(lag(df1[["TotEng"]]))
+  z <- as.data.frame(x-y)
+  names(z) <- paste("stap")
+  df1 <- bind_cols(df1, z)
+  z1 <- filter(df1, abs(z) == 0) 
+  min_step <- as.numeric(min(z1[4]))
+  print(min_step)
+}
+v <- vector("double", nrow(M))
+for (i in 1:nrow(M)) {
+  df <- read.csv("~/THESIS/all_log_lamps.csv")
+  v[i]<-guimme_end(vel = as.numeric(M[i,2]), ff=as.numeric(M[i,1]))
+  print(v)
+}
+v <- as.data.frame(v)
+names(v) <- paste("corte")
+M <- bind_cols(M, v)
+
+
 root_dir <- getwd()
 num_files_train <- 1
 num_dumps_to_read <- 100
@@ -90,20 +126,6 @@ for (f in 1:length(dirs)) {
     
     #############criterio de corte###################
     min_step <- filter(M, vel == vel, ff == fill)[[3]]
-    #df <- read.csv("~/THESIS/all_log_lamps.csv")
-    #df <- as.data.frame(filter(df, velocity == vel & fill.factor == fill))
-    #c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
-    #df1 <- filter(df, TotEng <= c)
-    ###ojo, no siempre los dumps van a ser cada 10000 steps####
-    #df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
-    #x <- as.vector(df1[["TotEng"]])
-    #y <- as.vector(lag(df1[["TotEng"]]))
-    #z <- as.data.frame(x-y)
-    #names(z) <- paste("stap")
-    #df1 <- bind_cols(df1, z)
-    #z1 <- filter(df1, z <= toteng_cut)
-    #min_step <- as.numeric(min(z1[4]))
-    #print(paste("el step de corte sugerido es", min_step))
 
     ######### CARGAR LAS 10 TABLAS EN UNA LISTA COMO DATAFRAMES ###############################
     ### Cargo el nombre de todos los archivos output en el directorio     #####################
@@ -185,16 +207,6 @@ for (f in 1:length(dirs)) {
     tic("predict")
     #####SI TODO OK, ENTONCES#########################################
     archivos <- list.files(path=".", full.names = TRUE, pattern = "output.*.gz")
-    #vals <- unlist(lapply(archivos, FUN=function(x){strsplit(x[1], ".g")[[1]][1]}))
-    #vals2 <- unlist(lapply(vals, FUN=function(x){strsplit(x[1], "output.")[[1]][2]}))
-    #holi <- as.data.frame(as.numeric(vals2))
-    #names(holi) <- paste("output")
-    #len <- as.data.frame(mixedorder(vals2))
-    #names(len) <- paste("mixedorder")
-    #holi <- bind_cols(holi,len)
-    #holi2 <- filter(holi, output <= min_step)
-
-    #archivos <- archivos[holi2[[2]]]
     
     #SUPPORT VECTOR MACHINE PARA TODOS LOS OUTPUTS
     for (i in 1:length(archivos)) {
