@@ -89,20 +89,21 @@ for (f in 1:length(dirs)) {
     print(paste("Cantidad de pasos entre dumps: ", predict_between_n_steps))
     
     #############criterio de corte###################
-    df <- read.csv("~/THESIS/all_log_lamps.csv")
-    df <- as.data.frame(filter(df, velocity == vel & fill.factor == fill))
-    c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
-    df1 <- filter(df, TotEng <= c)
+    min_step <- filter(M, vel == vel, ff == fill)[[3]]
+    #df <- read.csv("~/THESIS/all_log_lamps.csv")
+    #df <- as.data.frame(filter(df, velocity == vel & fill.factor == fill))
+    #c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
+    #df1 <- filter(df, TotEng <= c)
     ###ojo, no siempre los dumps van a ser cada 10000 steps####
-    df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
-    x <- as.vector(df1[["TotEng"]])
-    y <- as.vector(lag(df1[["TotEng"]]))
-    z <- as.data.frame(x-y)
-    names(z) <- paste("stap")
-    df1 <- bind_cols(df1, z)
-    z1 <- filter(df1, z <= toteng_cut)
-    min_step <- as.numeric(min(z1[4]))
-    print(paste("el step de corte sugerido es", min_step))
+    #df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
+    #x <- as.vector(df1[["TotEng"]])
+    #y <- as.vector(lag(df1[["TotEng"]]))
+    #z <- as.data.frame(x-y)
+    #names(z) <- paste("stap")
+    #df1 <- bind_cols(df1, z)
+    #z1 <- filter(df1, z <= toteng_cut)
+    #min_step <- as.numeric(min(z1[4]))
+    #print(paste("el step de corte sugerido es", min_step))
 
     ######### CARGAR LAS 10 TABLAS EN UNA LISTA COMO DATAFRAMES ###############################
     ### Cargo el nombre de todos los archivos output en el directorio     #####################
