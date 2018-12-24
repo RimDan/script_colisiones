@@ -307,7 +307,7 @@ save(output_benchmark,file="benchmark_granular_Daniela_2018-10-03_SMALL_100point
 #PLOTEAR RANDOM FOREST Y SVM EN EL MISMO GRÁFICO.
 p1 <-   output_predict %>% #filter(fill==0.15 & velocity == -0.5) %>%
         ggplot() + 
-        geom_line(aes(step, accuracy, color=model)) + 
+        geom_point(aes(step, accuracy, color=model), size = 0.2) + 
         xlab("Steps") + 
         ylab("Accuracy") + 
         theme_bw() + 

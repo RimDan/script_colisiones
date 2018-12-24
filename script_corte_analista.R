@@ -8,18 +8,36 @@ library(factoextra)
 
 df <- read.csv("~/THESIS/all_log_lamps.csv")
 
+###función para tomar 10 rows anteriores, hacer el promedio y reeplazar###
+###en la celda actual####
+
+fun1 <- function(df, col){
+  df <- as.data.frame(df)
+  df1 <- as.data.frame(df[[as.numeric(col)]])
+  v <- vector("double", nrow(df1))
+    for (i in 1:(nrow(df1)-10)) {
+      if(i <= 10){
+        v[i] <- print(NA)
+      }else{
+        v[i] <- ((abs(mean(df1[(i-10):(i-1),]) - df1[i,]))/df1[i,])*100
+      }
+    }
+  v <- as.data.frame(v)
+  names(v) <- paste("chnge_per100")
+  v <- print(v)
+}
+  
+
 plot_end <- function(vel, ff){
   df <- as.data.frame(filter(df, velocity == vel & fill.factor == ff))
+  df2 <- fun1(df,8)
+  names(df2) <- paste("perc_chge")
+  df <- bind_cols(df, df2)
   c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
   df1 <- filter(df, TotEng <= c)
   ###ojo, no siempre los dumps van a ser cada 10000 steps####
   df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
-  x <- as.vector(df1[["TotEng"]])
-  y <- as.vector(lag(df1[["TotEng"]]))
-  z <- as.data.frame(x-y)
-  names(z) <- paste("stap")
-  df1 <- bind_cols(df1, z)
-  z1 <- filter(df1, z == 0)
+  z1 <- filter(df1, perc_chge <= 0.0001) 
   min_step <- as.numeric(min(z1[4]))
   print(paste("el step de corte sugerido es", min_step))
   p1 <- ggplot(df, aes(Step,TotEng)) +
