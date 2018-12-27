@@ -36,9 +36,13 @@ plot_end <- function(vel, ff){
   c <- as.numeric((abs(max(df[["TotEng"]])) + abs(min(df[["TotEng"]])))/2)
   df1 <- filter(df, TotEng <= c)
   ###ojo, no siempre los dumps van a ser cada 10000 steps####
-  df1 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
-  z1 <- filter(df1, perc_chge <= 0.0001) 
-  min_step <- as.numeric(min(z1[4]))
+  df1 <- filter(df1, abs(perc_chge) <= 0.0001) 
+  df3 <- as.data.frame(filter(df1, Step %% 10000 == 0 ))
+  if(nrow(df3)==0){
+    min_step <- round(as.numeric(median(df1[4])), digits = -4)
+  }else{
+      min_step <- as.numeric(median(df3[[4]]))
+  }
   print(paste("el step de corte sugerido es", min_step))
   p1 <- ggplot(df, aes(Step,TotEng)) +
     geom_line() +
@@ -85,3 +89,4 @@ class_kmeans <- function(vel, ff, min_step){
   last_output <- bind_cols(last_output, clust)
   ggplot(last_output, aes(id, vz, color = clust)) + geom_point()
 }
+
