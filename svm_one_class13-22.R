@@ -5,6 +5,7 @@ library(gtools)
 library(purrr)
 library(caret)
 library(tictoc)
+
 library(readr)
 library(e1071)
 #library(corrplot)
@@ -20,7 +21,7 @@ get_time <- function(type,time_list){
 }
 ####training con super lo####
 
-lo_10 <- super_last_output
+lo_10 <- filter(super_last_output, velocity == c(-1,-0.1) )
 
 ##SVM#######################
 
@@ -44,7 +45,7 @@ x <- subset(df, select = vz) #make x variables
 y <- df$clust #make y variable(dependent)
 tic("train SVM1class")
 fit.svm <- svm(x, y,type='one-classification', nu=0.05, 
-               kernel="radial", data = df) #train an one-classification model 
+             kernel="radial", data = df) #train an one-classification model 
 toc(log = TRUE, quiet = TRUE)
 
 ####DIRECTORIO DE TODOS LOS OUTPUTS######################################################
@@ -76,10 +77,8 @@ output_benchmark <- data.frame(model = character(),
                                predict_total = numeric(),
                                time_train_svm = numeric(),
                                time_train_rf = numeric(),
-                               time_train_svm1 =numeric(),
                                time_predict_svm = numeric(),
                                time_predict_rf = numeric(),
-                               time_predict_svm1 = numeric(),
                                time_input = numeric(),
                                time_save_total = numeric())
 
@@ -96,18 +95,14 @@ for (f in 1:length(dirs)) {
   fill <- as.numeric(unlist(strsplit(dirs[f],"[_]"))[3])
   velocity  <- as.numeric(unlist(strsplit(dirs[f],"[_]"))[4])
   
-  if (size != "small" & velocity >= -1.0 & velocity <= -0.1){
+  if (size == "small" & velocity >= -1.0){
     
     #cd to simulation directory
     directory <- paste(getwd(),"/granular_",size,"_",fill,"_",velocity,sep ="")
     setwd(directory)
     l <- fill
     v <- velocity
-    s <- size
-    
-    ##ACA CAMBIAR last_step_big_med CON EL NUEVO ARCHIVO!!!!!!#############
-    min_step <- filter(last_step_med_big, size == s & fill == l & velocity == v)$last_step
-    
+    min_step <- filter(cut_analyst_time, fill == l & velocity == v)$last_step
     total_grains <- as.numeric(unlist(strsplit(grep("Loop time", readLines("log.lammps"),value = TRUE), " "))[12])
     print(paste("Total_grains:",total_grains))
     
@@ -116,15 +111,14 @@ for (f in 1:length(dirs)) {
     
     predict_between_n_steps <- total_steps / num_dumps_to_read
     print(paste("Cantidad de pasos entre dumps: ", predict_between_n_steps))
-
-    #########Cambiar super_last_output por el nombre del df con todos los med y big###########
-    pred_clust <- filter(super_last_output, size == s & fill.factor == l & velocity == v)
+    
+    archivos <- list.files(path=".", full.names = TRUE, pattern = "output.*.gz")
+    
+    pred_clust <- filter(super_last_output, fill.factor == l & velocity == v)
     pred_clust <- arrange(pred_clust, id)
     names(pred_clust)[[14]] <- paste("clust")
     pred_clust <- select(pred_clust, c(id,clust))
     #SUPPORT VECTOR MACHINE PARA TODOS LOS OUTPUTS
-    archivos <- list.files(path=".", full.names = TRUE, pattern = "output.*.gz")
-    
     for (i in 1:length(archivos)) {
       
       step <- as.double(unlist(strsplit(archivos[i], "[.]"))[3])
@@ -188,7 +182,7 @@ for (f in 1:length(dirs)) {
         output_predict <- rbind(output_predict, new_data_rf) 
         toc(log = TRUE, quiet = TRUE)
         
-        
+
         
         tic("predict SVM1class")
         #SVM
@@ -244,11 +238,11 @@ for (f in 1:length(dirs)) {
 }
 toc()
 
-#save(output_predict_svm1,file="S_001_013.Rda")
-#save(output_benchmark_svm1,file="S_bench_001_013.Rda")
 
-#setwd("/home/daniela/")
-#save(super_last_output, file =  "slo.Rda")
+
+setwd("/home/daniela/simulaciones_daniela/S_001_vz_all3/")
+save(output_predict,file="S_001_023.Rda")
+save(output_benchmark,file="S_bench_001_023.Rda")
 
 #time_list <- toc(log = TRUE, quiet = TRUE)
 
@@ -270,11 +264,36 @@ toc()
 p1 <- output_predict %>%
   ggplot() + 
   # ggtitle("v=1.0") + 
-  geom_point(aes(step, accuracy)) + 
+  geom_point(aes(step, kappa, color= model)) + 
   xlab("Steps") + 
-  ylab("accuracy") + 
+  ylab("kappa") + 
   theme_bw() + 
   labs(colour="Method") #+ geom_vline(xintercept = 3e+06)
 p1 <- p1 + facet_grid(fill~velocity)
 p1
 #}
+
+p1 <- ggplot() + 
+  geom_point(data=filter(output_predict, model == "svm" & fill == 0.15), aes(velocity, kappa, color = "0.15")) + 
+  geom_point(data=filter(output_predict, model == "svm" & fill == 0.25), aes(velocity, kappa, color = "0.25")) + 
+  geom_point(data=filter(output_predict, model == "svm" & fill == 0.35), aes(velocity, kappa, color = "0.35")) + 
+  xlab("Steps") + 
+  ylab("kappa") + 
+  theme_bw() + 
+  labs(colour="Method") #+ geom_vline(xintercept = 3e+06)
+p1 <- p1 + facet_grid(~fill)
+p1
+
+
+
+p1 <- ggplot() + 
+  geom_point(data=filter(output_predict, fill == 0.15), aes(velocity, kappa, color = step)) + 
+  geom_point(data=filter(output_predict, fill == 0.25), aes(velocity, kappa, color = step)) + 
+  geom_point(data=filter(output_predict, fill == 0.35), aes(velocity, kappa, color = step)) + 
+  xlab("velocity") + 
+  ylab("kappa") + 
+  theme_bw() + 
+  xlim(-1,0.05)+
+  labs(colour="Fill factor") #+ geom_vline(xintercept = 3e+06)
+p1 <- p1 + facet_grid(model~fill)
+p1

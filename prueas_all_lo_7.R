@@ -5,9 +5,8 @@ library(gtools)
 library(purrr)
 library(caret)
 library(tictoc)
-
-#library(readr)
-#library(e1071)
+library(readr)
+library(e1071)
 #library(corrplot)
 
 

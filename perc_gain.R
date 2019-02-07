@@ -1,4 +1,4 @@
-perc_gain_005  <- data.frame(   perc= numeric(),
+perc_gain_011  <- data.frame(   perc= numeric(),
                                 model= character(),
                                 fill= numeric(),
                                 velocity=numeric(),
@@ -19,20 +19,43 @@ percent <- as.vector(c(0.90,0.95,0.99))
           fil <- as.numeric(unique(output_predict[[3]])[i])
             for (i in 1:length(unique(output_predict[[4]]))){
               vl <- as.numeric(unique(output_predict[[4]])[i])
-              for (i in 1:length(percent)) {
-              percent <- percent[i]
-              m <-  cut_time(df = df1, vel = vl, ff = fil, mdl = model, percent)
+              for (f in 1:length(percent)) {
+              perc <- percent[f]
+              m <-  cut_time(df = df1, vel = vl, ff = fil, mdl = model, perc)
               step_cut <- m[1]
               time_cut <- m[2]
               perc_gain <- m[3]
-              new_data <- data.frame(perc = percent, model = model, fill= fil, velocity=vl, stepc = step_cut,
+              new_data <- data.frame(perc = perc, model = model, fill= fil, velocity=vl, stepc = step_cut,
                                     time_cut = time_cut, perc_gain = perc_gain)
-              perc_gain_006 <- rbind(output_predict, new_data)
+              perc_gain_011 <- rbind(perc_gain_011, new_data)
               
               }
         }
   }
 }
+
+p2 <- ggplot() + geom_line(data= filter(perc_gain_012, model == "svm", perc ==0.99), aes(velocity, perc_gain, color = "0.99")) +
+  geom_point(data= filter(perc_gain_012, model == "svm", perc ==0.99), aes(velocity, perc_gain, color = "0.99")) +
+  geom_line(data= filter(perc_gain_012, model == "svm", perc ==0.95), aes(velocity, perc_gain, color = "0.95")) +
+  geom_point(data= filter(perc_gain_012, model == "svm", perc ==0.95), aes(velocity, perc_gain, color = "0.95")) +
+  geom_line(data= filter(perc_gain_012, model == "svm", perc ==0.90), aes(velocity, perc_gain, color = "0.90")) +
+  geom_point(data= filter(perc_gain_012, model == "svm", perc ==0.90), aes(velocity, perc_gain, color = "0.90")) +
+  xlim(-1,0) + ylim(0,100) + xlab("Velocidad inicial") + ylab("Porcentaje de ganacia") + ggtitle("SVM: Prueba 012")
+p2 <- p2 + facet_grid(fill~.) + theme_bw()
+p2 <- p2 +  guides(colour = guide_legend(title="kappa", override.aes = list(size=1)))
+p2
+
+p2 <- ggplot() + geom_line(data= filter(perc_gain_012, model == "svm" & fill == 0.15), aes(velocity, perc_gain, color = "0.15")) +
+  geom_point(data= filter(perc_gain_012, model == "svm" & fill == 0.15), aes(velocity, perc_gain, color = "0.15")) +
+  geom_line(data= filter(perc_gain_012, model == "svm" & fill == 0.25), aes(velocity, perc_gain, color = "0.25")) +
+  geom_point(data= filter(perc_gain_012, model == "svm" & fill == 0.25), aes(velocity, perc_gain, color = "0.25")) +
+  geom_line(data= filter(perc_gain_012, model == "svm" & fill == 0.35), aes(velocity, perc_gain, color = "0.35")) +
+  geom_point(data= filter(perc_gain_012, model == "svm" & fill == 0.35), aes(velocity, perc_gain, color = "0.35")) +
+  xlim(-1,0) + ylim(0,100) + xlab("Velocidad inicial") + ylab("Porcentaje de ganacia") + ggtitle("SVM: Prueba 012")
+p2 <- p2 + facet_grid(perc~.) + theme_bw()
+p2 <- p2 +  guides(colour = guide_legend(title="Factor de llenado", override.aes = list(size=1)))
+p2
+  
 
 cut_time <- function(df, vel, ff, mdl, perc){
   perc <- as.numeric(perc)
@@ -56,3 +79,5 @@ cut_time <- function(df, vel, ff, mdl, perc){
       print(m)
     }
   }
+
+options(scipen = 999)
